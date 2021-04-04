@@ -79,7 +79,6 @@ def add_indiviuo(id):
     i = get_individuo_html(id)
 
     nome = findall(r'<title>(.*)<\/title>', i)[0]
-    print(nome)
     pai = findall(r'Pai:.*?<[Aa]\s+[Hh][rR][Ee][Ff]=.*?id=(\d+)"?>(.*?)<\/A>', i)
     mae = findall(r'Mãe:.*?<[Aa]\s+[Hh][rR][Ee][Ff]=.*?id=(\d+)"?>(.*?)<\/A>', i)  
     filhos = findall(r'<[Ll][Ii]><[aA]\s+[Hh][rR][Ee][Ff]=.*?id=(\d+)"?>(.*?)<\/[aA]>.*<\/[Ll][Ii]>', i)
@@ -106,25 +105,25 @@ def add_indiviuo(id):
         "mae": mae
     }
 
-def get_familia(id):
+def preenche_individuos(id):
     add_indiviuo(id)
     ind = individuos[id]
     
     for c in ind["casamentos"]:
         if not individuos.get(int(c['id'])):
-            get_familia(int(c['id']))
+            preenche_individuos(int(c['id']))
 
     for f in ind["filhos"]:
         if not individuos.get(int(f['id'])):
-            get_familia(int(f['id']))
+            preenche_individuos(int(f['id']))
 
     if ind["pai"] and not individuos.get(int(ind["pai"]['id'])):
-        get_familia(int(ind["pai"]['id']))        
+        preenche_individuos(int(ind["pai"]['id']))        
 
     if ind["mae"] and not individuos.get(int(ind["mae"]['id'])):
-        get_familia(int(ind["mae"]['id']))  
+        preenche_individuos(int(ind["mae"]['id']))  
 
-def get_familias():
+def preenche_familias():
     fams = findall(r'<[Ll][Ii]><[aA]\s+[Hh][rR][Ee][Ff]=.*?id=(\d+)"?>(.*?)<\/[aA]>.*?<\/[Ll][Ii]>',get_familias_html())
     for f in fams:
         fam = get_familia_html(f[0])
@@ -134,18 +133,69 @@ def get_familias():
             'pessoas': tuple_to_person(inds)
         } 
 
-get_familia(1078242)
+print("Loading individuos....")
+preenche_individuos(1078242)
+print("Done!")
+print("Loading familias...")
+preenche_familias()
+print("Done!")
 
-get_familias()
+def get_todos_individuos():
+    print(json.dumps(individuos, indent=4))
 
+def get_todas_familias():
+    print(json.dumps(familias, indent=4))
 
+def get_individuo():
+    id_ind = input("Insere id do individuo\n")
+    id_ind = int(id_ind)
+    if id_ind in individuos.keys():
+        print(json.dumps(individuos[id_ind], indent=4))
+    else:
+        print("Individuo Inexistente")
 
-f = open("familia.json", "a")
-f.write(json.dumps(individuos))
-f.close()
+def get_familia():
+    id_fam = input("Insere id da familia\n")
+    if id_fam in familias.keys():
+        print(json.dumps(familias[id_fam], indent=4))
+    else:
+        print("Familia Inexistente")
+    
+def gera_ficheiros():
+    f = open("familia.json", "a")
+    f.write(json.dumps(individuos, indent=4))
+    f.close()
 
-f = open("familias.json", "a")
-f.write(json.dumps(familias))
-f.close()
+    f = open("familias.json", "a")
+    f.write(json.dumps(familias, indent=4))
+    f.close()
+
+options = {
+    "1": get_individuo,
+    "2": get_familia,
+    "3": get_todos_individuos,
+    "4": get_todas_familias,
+    "5": gera_ficheiros
+}
+
+option = True
+while(int(option)):
+    print("""
+1 - Mostrar individuo
+2 - Mostrar Familia
+3 - Mostrar todos individuos
+4 - Mostrar todas familias
+5 - Criar ficheiros de output
+0 - Sair
+    """)
+    option = input('Insere opção\n')
+    if(option != "0"):
+        if option.isnumeric() and int(option) > 0 and int(option) <= 5:
+            func = options[option]
+            func()
+        else:
+            print("Opção invalida! \nExiting!")
+            break
+    
 
 
