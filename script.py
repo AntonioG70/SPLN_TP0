@@ -5,6 +5,9 @@ import json
 individuos = {}
 familias = {}
 
+#####################
+# REQUESTS HTML
+
 def get_individuo_html(id):
     resp = reqs.get('http://pagfam.geneall.net/3418/pessoas.php?id=' + str(id)) 
     resp.raise_for_status()
@@ -19,6 +22,10 @@ def get_familia_html(id):
     resp = reqs.get('http://pagfam.geneall.net/3418/fam_names.php?id=' + str(id)) 
     resp.raise_for_status()
     return resp.text
+
+
+#####################
+# PARSE INFO
 
 def parse_groups(lis):
     if len(lis) == 0:
@@ -105,6 +112,10 @@ def add_indiviuo(id):
         "mae": mae
     }
 
+
+#####################
+# CARREGAR INFO
+
 def preenche_individuos(id):
     add_indiviuo(id)
     ind = individuos[id]
@@ -139,6 +150,9 @@ print("Done!")
 print("Loading familias...")
 preenche_familias()
 print("Done!")
+
+#####################
+# OPÇÕES
 
 def get_todos_individuos():
     print(json.dumps(individuos, indent=4))
@@ -177,6 +191,9 @@ options = {
     "4": get_todas_familias,
     "5": gera_ficheiros
 }
+
+#####################
+# MENU
 
 option = True
 while(int(option)):
