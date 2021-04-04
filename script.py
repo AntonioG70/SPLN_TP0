@@ -3,10 +3,12 @@ import requests as reqs
 
 dicionario = {}
 
+"""
 def getverifica():
     resp = reqs.get('http://pagfam.geneall.net/3418/pessoas_search.php?start=90&orderby=&sort=&idx=0&search=')
     resp.raise_for_status()
     return resp.text
+"""
 
 def getIndividuoHTML(id):
     resp = reqs.get('http://pagfam.geneall.net/3418/pessoas.php?id=' + str(id)) 
@@ -21,44 +23,61 @@ def parseGroups(lis):
 
     return lis    
 
-
-def addIndiviuo(id):
-    i = getIndividuoHTML(id)
-    print(id)
-    nome = findall(r'<title>(.*)<\/title>', i)
-    print(nome)
-    casamentosTotal = findall(r'Casamentos<\/div>.*<\/div>', i)
+def parseCasamentos(ind):
+    casamentosTotal = findall(r'Casamentos<\/div>.*<\/div>', ind)
 
     if casamentosTotal:
         casamentos = findall(r'<[aA]\s+[Hh][rR][Ee][Ff]=.*?id=(\d+)"?>(.*?)<\/[aA]>', casamentosTotal[0])
     else:
-        casamentos = []     
-    filhos = findall(r'<[Ll][Ii]><[aA]\s+[Hh][rR][Ee][Ff]=.*?id=(\d+)"?> (.*?).*<\/[Ll][Ii]>', i) 
-    infoTotal = findall(r'((.|\n)*?)(Pais|Filhos|Casamentos|Notas)', i)
+        casamentos = []
 
+    return casamentos
+
+def parseInfoMorte(ind):
+    infoTotal = findall(r'((.|\n)*?)(Pais|Filhos|Casamentos|Notas)', ind)            
+    
     if infoTotal:
-        nascimento = findall(r'(\*.*?)<nobr>(.*?)<\/nobr>', infoTotal[0][0]) 
         morte = findall(r'(\+.*?)<nobr>(.*?)<\/nobr>', infoTotal[0][0]) 
     else:
-        nascimento = [None]
         morte = [None]
 
-    nascimento = parseGroups(nascimento)
+    return morte    
 
-    morte = parseGroups(morte)           
+def parseInfoNascimento(ind):
+    infoTotal = findall(r'((.|\n)*?)(Pais|Filhos|Casamentos|Notas)', ind)            
+    
+    if infoTotal:
+        nascimento = findall(r'(\*.*?)<nobr>(.*?)<\/nobr>', infoTotal[0][0]) 
+    else:
+        nascimento = [None]
 
-    notasTotal = findall(r'Notas((.|\n)*)', i)
+    return nascimento
+
+def parseNotas(ind):
+    notasTotal = findall(r'Notas((.|\n)*)', ind)
+
     if notasTotal:
         notas = findall(r'<[Ll][Ii]>(.*)<\/[Ll][Ii]>', notasTotal[0][0]) 
     else:
         notas = []
 
+    return notas    
+    
+def addIndiviuo(id):
+    i = getIndividuoHTML(id)
+
+    nome = findall(r'<title>(.*)<\/title>', i)
+    print(nome)
     pai = findall(r'Pai:.*?<[Aa]\s+[Hh][rR][Ee][Ff]=.*?id=(\d+)"?>.*?<\/A>', i)
+    mae = findall(r'Mãe:.*?<[Aa]\s+[Hh][rR][Ee][Ff]=.*?id=(\d+)"?>.*?<\/A>', i)  
+    filhos = findall(r'<[Ll][Ii]><[aA]\s+[Hh][rR][Ee][Ff]=.*?id=(\d+)"?> (.*?).*<\/[Ll][Ii]>', i)
+
+    nascimento = parseGroups(parseInfoNascimento(i))
+    morte = parseGroups(parseInfoMorte(i))           
+    notas = parseNotas(i)
+    casamentos = parseCasamentos(i)
 
     pai = parseGroups(pai)
-
-    mae = findall(r'Mãe:.*?<[Aa]\s+[Hh][rR][Ee][Ff]=.*?id=(\d+)"?>.*?<\/A>', i)    
-
     mae = parseGroups(mae)
 
     dicionario[id] = {
@@ -75,7 +94,7 @@ def addIndiviuo(id):
 def getFamilia(id):
     addIndiviuo(id)
     ind = dicionario[id]
-
+    
     for c in ind["casamentos"]:
         if not dicionario.get(int(c[0])):
             getFamilia(int(c[0]))
@@ -92,7 +111,5 @@ def getFamilia(id):
 
 getFamilia(1078242)
 print(len(dicionario))
-#print(getIndividuoHTML(1076107))
-#print(getIndividuoHTML(1076103))
 
 
