@@ -1,87 +1,102 @@
 from jjcli import *
 import requests as reqs
+import json
 
-dicionario = {}
+individuos = {}
+familias = {}
 
-"""
-def getverifica():
-    resp = reqs.get('http://pagfam.geneall.net/3418/pessoas_search.php?start=90&orderby=&sort=&idx=0&search=')
-    resp.raise_for_status()
-    return resp.text
-"""
-
-def getIndividuoHTML(id):
+def get_individuo_html(id):
     resp = reqs.get('http://pagfam.geneall.net/3418/pessoas.php?id=' + str(id)) 
     resp.raise_for_status()
     return resp.text
 
-def parseGroups(lis):
+def get_familias_html():
+    resp = reqs.get('http://pagfam.geneall.net/3418/familias_search.php') 
+    resp.raise_for_status()
+    return resp.text
+
+def get_familia_html(id):
+    resp = reqs.get('http://pagfam.geneall.net/3418/fam_names.php?id=' + str(id)) 
+    resp.raise_for_status()
+    return resp.text
+
+def parse_groups(lis):
     if len(lis) == 0:
         lis = None
     else:
         lis = lis[0]
 
-    return lis    
+    return lis
 
-def parseCasamentos(ind):
-    casamentosTotal = findall(r'Casamentos<\/div>.*<\/div>', ind)
+def tuple_to_person(lis):
+    return list(map(lambda x: {'id': x[0],'nome': x[1].strip()}, lis))
 
-    if casamentosTotal:
-        casamentos = findall(r'<[aA]\s+[Hh][rR][Ee][Ff]=.*?id=(\d+)"?>(.*?)<\/[aA]>', casamentosTotal[0])
+def tuple_to_acontecimento(lis):
+    return list(map(lambda x: {'local': x[0].strip(),'data': x[1]}, lis))
+
+
+def parse_casamentos(ind):
+    casamentos_total = findall(r'Casamentos<\/div>.*<\/div>', ind)
+
+    if casamentos_total:
+        casamentos = findall(r'<[aA]\s+[Hh][rR][Ee][Ff]=.*?id=(\d+)"?>(.*?)<\/[aA]>', casamentos_total[0])
     else:
         casamentos = []
 
-    return casamentos
+    return tuple_to_person(casamentos)
 
-def parseInfoMorte(ind):
-    infoTotal = findall(r'((.|\n)*?)(Pais|Filhos|Casamentos|Notas)', ind)            
+def parse_info_morte(ind):
+    info_total = findall(r'((.|\n)*?)(Pais|Filhos|Casamentos|Notas)', ind)            
     
-    if infoTotal:
-        morte = findall(r'(\+.*?)<nobr>(.*?)<\/nobr>', infoTotal[0][0]) 
+    if info_total:
+        morte = findall(r'(\+.*?)<nobr>(.*?)<\/nobr>', info_total[0][0]) 
     else:
         morte = [None]
 
     return morte    
 
-def parseInfoNascimento(ind):
-    infoTotal = findall(r'((.|\n)*?)(Pais|Filhos|Casamentos|Notas)', ind)            
+def parse_info_nascimento(ind):
+    info_total = findall(r'((.|\n)*?)(Pais|Filhos|Casamentos|Notas)', ind)            
     
-    if infoTotal:
-        nascimento = findall(r'(\*.*?)<nobr>(.*?)<\/nobr>', infoTotal[0][0]) 
+    if info_total:
+        nascimento = findall(r'(\*.*?)<nobr>(.*?)<\/nobr>', info_total[0][0]) 
     else:
         nascimento = [None]
 
     return nascimento
 
-def parseNotas(ind):
-    notasTotal = findall(r'Notas((.|\n)*)', ind)
+def parse_notas(ind):
+    notas_total = findall(r'Notas((.|\n)*)', ind)
 
-    if notasTotal:
-        notas = findall(r'<[Ll][Ii]>(.*)<\/[Ll][Ii]>', notasTotal[0][0]) 
+    if notas_total:
+        notas = findall(r'<[Ll][Ii]>(.*)<\/[Ll][Ii]>', notas_total[0][0]) 
     else:
         notas = []
 
     return notas    
     
-def addIndiviuo(id):
-    i = getIndividuoHTML(id)
+def add_indiviuo(id):
+    i = get_individuo_html(id)
 
-    nome = findall(r'<title>(.*)<\/title>', i)
+    nome = findall(r'<title>(.*)<\/title>', i)[0]
     print(nome)
-    pai = findall(r'Pai:.*?<[Aa]\s+[Hh][rR][Ee][Ff]=.*?id=(\d+)"?>.*?<\/A>', i)
-    mae = findall(r'Mãe:.*?<[Aa]\s+[Hh][rR][Ee][Ff]=.*?id=(\d+)"?>.*?<\/A>', i)  
-    filhos = findall(r'<[Ll][Ii]><[aA]\s+[Hh][rR][Ee][Ff]=.*?id=(\d+)"?> (.*?).*<\/[Ll][Ii]>', i)
+    pai = findall(r'Pai:.*?<[Aa]\s+[Hh][rR][Ee][Ff]=.*?id=(\d+)"?>(.*?)<\/A>', i)
+    mae = findall(r'Mãe:.*?<[Aa]\s+[Hh][rR][Ee][Ff]=.*?id=(\d+)"?>(.*?)<\/A>', i)  
+    filhos = findall(r'<[Ll][Ii]><[aA]\s+[Hh][rR][Ee][Ff]=.*?id=(\d+)"?>(.*?)<\/[aA]>.*<\/[Ll][Ii]>', i)
+    filhos = tuple_to_person(filhos)
 
-    nascimento = parseGroups(parseInfoNascimento(i))
-    morte = parseGroups(parseInfoMorte(i))           
-    notas = parseNotas(i)
-    casamentos = parseCasamentos(i)
+    nascimento = parse_groups(tuple_to_acontecimento(parse_info_nascimento(i)))
+    morte = parse_groups(tuple_to_acontecimento(parse_info_morte(i)))           
+    notas = parse_notas(i)
+    casamentos = parse_casamentos(i)
 
-    pai = parseGroups(pai)
-    mae = parseGroups(mae)
+    pai = tuple_to_person(pai)
+    pai = parse_groups(pai)
+    mae = tuple_to_person(mae)
+    mae = parse_groups(mae)
 
-    dicionario[id] = {
-        "nome": nome[0],
+    individuos[id] = {
+        "nome": nome,
         "filhos": filhos,
         "casamentos": casamentos,
         "nascimento": nascimento,
@@ -91,25 +106,46 @@ def addIndiviuo(id):
         "mae": mae
     }
 
-def getFamilia(id):
-    addIndiviuo(id)
-    ind = dicionario[id]
+def get_familia(id):
+    add_indiviuo(id)
+    ind = individuos[id]
     
     for c in ind["casamentos"]:
-        if not dicionario.get(int(c[0])):
-            getFamilia(int(c[0]))
+        if not individuos.get(int(c['id'])):
+            get_familia(int(c['id']))
 
     for f in ind["filhos"]:
-        if not dicionario.get(int(f[0])):
-            getFamilia(int(f[0]))
+        if not individuos.get(int(f['id'])):
+            get_familia(int(f['id']))
 
-    if ind["pai"] and not dicionario.get(int(ind["pai"])):
-        getFamilia(int(ind["pai"]))        
+    if ind["pai"] and not individuos.get(int(ind["pai"]['id'])):
+        get_familia(int(ind["pai"]['id']))        
 
-    if ind["mae"] and not dicionario.get(int(ind["mae"])):
-        getFamilia(int(ind["mae"]))  
+    if ind["mae"] and not individuos.get(int(ind["mae"]['id'])):
+        get_familia(int(ind["mae"]['id']))  
 
-getFamilia(1078242)
-print(len(dicionario))
+def get_familias():
+    fams = findall(r'<[Ll][Ii]><[aA]\s+[Hh][rR][Ee][Ff]=.*?id=(\d+)"?>(.*?)<\/[aA]>.*?<\/[Ll][Ii]>',get_familias_html())
+    for f in fams:
+        fam = get_familia_html(f[0])
+        inds = findall(r'<[aA]\s+[Hh][rR][Ee][Ff]=pessoas.php\?id=(\d+)"?>(.*?)<\/[aA]>',fam)
+        familias[f[0]] = {
+            'nome': f[1],
+            'pessoas': tuple_to_person(inds)
+        } 
+
+get_familia(1078242)
+
+get_familias()
+
+
+
+f = open("familia.json", "a")
+f.write(json.dumps(individuos))
+f.close()
+
+f = open("familias.json", "a")
+f.write(json.dumps(familias))
+f.close()
 
 
